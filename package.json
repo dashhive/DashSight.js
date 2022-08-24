@@ -3,6 +3,10 @@
   "version": "1.0.1",
   "description": "SDK for Dash's flavor of the Insight API",
   "main": "index.js",
+  "browser": {
+    "./ws/index.js": "./ws/browser-ws.js",
+    "./lib/request.js": "./lib/browser-request.js"
+  },
   "bin": {
     "dashsight-balance": "bin/balance.js",
     "dashsight-instantsend": "bin/instantsend.js",
@@ -41,7 +45,7 @@
     "url": "https://github.com/dashhive/dashsight.js/issues"
   },
   "homepage": "https://github.com/dashhive/dashsight.js#readme",
-  "dependencies": {
+  "optionalDependencies": {
     "@root/request": "^1.8.3",
     "dotenv": "^16.0.1"
   }
