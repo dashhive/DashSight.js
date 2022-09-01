@@ -17,7 +17,8 @@
   "scripts": {
     "lint": "npx jshint@2 -c .jshintrc ./lib ./bin ./*.js; npx -p typescript@4 tsc",
     "fmt": "npx prettier@2 --write '**/*.{md,js}'",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prepublish": "./bin/re-export-types"
   },
   "files": [
     "bin",
@@ -46,7 +47,9 @@
   },
   "homepage": "https://github.com/dashhive/dashsight.js#readme",
   "optionalDependencies": {
-    "@root/request": "^1.8.3",
     "dotenv": "^16.0.1"
+  },
+  "dependencies": {
+    "@root/request": "^1.9.0-8"
   }
 }
