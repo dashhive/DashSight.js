@@ -10,11 +10,69 @@
 
   const DUFFS = 100000000;
 
+  /** @typedef {import('./').CoreUtxo} CoreUtxo */
   /** @typedef {import('./').InsightBalance} InsightBalance */
+  /** @typedef {import('./').InsightTx} InsightTx */
+  /** @typedef {import('./').InsightTxResponse} InsightTxResponse */
+  /** @typedef {import('./').InsightTxVin} InsightTxVin */
+  /** @typedef {import('./').InsightTxVout} InsightTxVout */
+  /** @typedef {import('./').InsightUtxo} InsightUtxo */
+  /** @typedef {import('./').InstantBalance} InstantBalance */
 
   /**
-   * @typedef DashsightInstance
-   * TODO
+   * @typedef DashSightInstance
+   * @prop {GetBalance} getBalance
+   * @prop {GetCoreUtxos} getCoreUtxos
+   * @prop {GetInstantBalance} getInstantBalance
+   * @prop {GetTx} getTx
+   * @prop {GetTxs} getTxs
+   * @prop {GetUtxos} getUtxos
+   */
+
+  /**
+   * Don't use this with instantSend
+   * @callback GetBalance
+   * @param {String} address
+   * @returns {Promise<InsightBalance>}
+   */
+
+  /**
+   * Instant Balance is accurate with Instant Send
+   * @callback GetInstantBalance
+   * @param {String} address
+   * @returns {Promise<InstantBalance>}
+   */
+
+  /**
+   * @callback GetUtxos
+   * @param {String} address
+   * @returns {Promise<Array<InsightUtxo>>}
+   */
+
+  /**
+   * @callback GetCoreUtxos
+   * @param {String} address
+   * @returns {Promise<Array<CoreUtxo>>}
+   *
+   * @TODO handle multiple input addresses
+   */
+
+  /**
+   * @callback GetTx
+   * @param {String} txid
+   * @returns {Promise<InsightTx>}
+   */
+
+  /**
+   * @callback GetTxs
+   * @param {String} addr
+   * @param {Number} maxPages
+   * @returns {Promise<InsightTxResponse>}
+   */
+
+  /**
+   * @callback InstantSend
+   * @param {String} hexTx
    */
 
   /**
@@ -23,6 +81,7 @@
    * @param {String} [opts.insightBaseUrl] - for regular Insight features, includes prefix
    * @param {String} [opts.dashsightBaseUrl] - for Dash-specific features, such as instant send
    * @param {String} [opts.dashsocketBaseUrl] - for WebSocket notifications
+   * @returns {DashSightInstance}
    */
   Dashsight.create = function ({
     baseUrl,
@@ -50,14 +109,13 @@
       dashsocketBaseUrl = `${baseUrl}/socket.io`;
     }
     if (dashsocketBaseUrl.endsWith("/")) {
-      dashsocketBaseUrl = dashsocketBaseUrl.slice(0, dashsocketBaseUrl.length - 1);
+      dashsocketBaseUrl = dashsocketBaseUrl.slice(
+        0,
+        dashsocketBaseUrl.length - 1,
+      );
     }
 
-    /**
-     * Don't use this with instantSend
-     * @param {String} address
-     * @returns {Promise<InsightBalance>}
-     */
+    /** @type {GetBalance} */
     insight.getBalance = async function (address) {
       console.warn(`warn: getBalance(pubkey) doesn't account for instantSend,`);
       console.warn(`      consider (await getUtxos()).reduce(countSatoshis)`);
@@ -69,11 +127,7 @@
       return data;
     };
 
-    /**
-     * Instant Balance is accurate with Instant Send
-     * @param {String} address
-     * @returns {Promise<InstantBalance>}
-     */
+    /** @type {GetInstantBalance} */
     insight.getInstantBalance = async function (address) {
       let utxos = await insight.getUtxos(address);
       let balanceDuffs = utxos.reduce(function (total, utxo) {
@@ -94,10 +148,7 @@
       };
     };
 
-    /**
-     * @param {String} address
-     * @returns {Promise<Array<InsightUtxo>>}
-     */
+    /** @type {GetUtxos} */
     insight.getUtxos = async function (address) {
       let utxoUrl = `${insightBaseUrl}/addr/${address}/utxo`;
       let utxoResp = await request({ url: utxoUrl, json: true });
@@ -107,12 +158,7 @@
       return utxos;
     };
 
-    /**
-     * @param {String} address
-     * @returns {Promise<Array<CoreUtxo>>}
-     *
-     * @TODO handle multiple input addresses
-     */
+    /** @type {GetCoreUtxos} */
     insight.getCoreUtxos = async function (address) {
       let result = await insight.getTxs(address, 1);
       if (result.pagesTotal > 1) {
@@ -124,10 +170,7 @@
       return coreUtxos;
     };
 
-    /**
-     * @param {String} txid
-     * @returns {Promise<InsightTx>}
-     */
+    /** @type {GetTx} */
     insight.getTx = async function (txid) {
       let txUrl = `${insightBaseUrl}/tx/${txid}`;
       let txResp = await request({ url: txUrl, json: true });
@@ -137,11 +180,7 @@
       return data;
     };
 
-    /**
-     * @param {String} addr
-     * @param {Number} maxPages
-     * @returns {Promise<InsightTxResponse>}
-     */
+    /** @type {GetTxs} */
     insight.getTxs = async function (addr, maxPages) {
       let txUrl = `${insightBaseUrl}/txs?address=${addr}&pageNum=0`;
       let txResp = await request({ url: txUrl, json: true });
@@ -172,9 +211,7 @@
       return body;
     }
 
-    /**
-     * @param {String} hexTx
-     */
+    /** @type {InstantSend} */
     insight.instantSend = async function (hexTx) {
       // Ex:
       //   - https://insight.dash.org/insight-api-dash/tx/sendix
