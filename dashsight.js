@@ -203,12 +203,11 @@
       };
     };
 
-    /** @type {ToCoreUtxos} */
-    insight.toCoreUtxos = function (insightUtxos) {
-      let coreUtxos = insightUtxos.map(insight.toCoreUtxo);
+    /** @type {ToCoreUtxo} */
+    insight.toCoreUtxo = Dashsight.toCoreUtxo;
 
-      return coreUtxos;
-    };
+    /** @type {ToCoreUtxos} */
+    insight.toCoreUtxos = Dashsight.toCoreUtxos;
 
     /**
      * Handles UTXOs that have NO MORE THAN ONE page of transactions
@@ -306,9 +305,29 @@
     throw err;
   };
 
+  /** @type {ToCoreUtxo} */
+  Dashsight.toCoreUtxo = function (utxo) {
+    return {
+      txId: utxo.txid,
+      outputIndex: utxo.vout,
+      address: utxo.address,
+      script: utxo.scriptPubKey,
+      satoshis: utxo.satoshis,
+    };
+  };
+
+  /** @type {ToCoreUtxos} */
+  Dashsight.toCoreUtxos = function (insightUtxos) {
+    let coreUtxos = insightUtxos.map(Dashsight.toCoreUtxo);
+
+    return coreUtxos;
+  };
+
   if ("undefined" !== typeof module) {
     module.exports.Dashsight = Dashsight;
     module.exports.create = Dashsight.create;
     module.exports.Dashfetch = Dashsight.fetch;
+    module.exports.toCoreUtxo = Dashsight.toCoreUtxo;
+    module.exports.toCoreUtxos = Dashsight.toCoreUtxos;
   }
 })(("undefined" !== typeof module && module.exports) || window);
