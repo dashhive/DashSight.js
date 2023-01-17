@@ -191,6 +191,17 @@
       };
     };
 
+    /** @type {ToCoreUtxo} */
+    insight.toCoreUtxo = function (utxo) {
+      return {
+        txId: utxo.txid,
+        outputIndex: utxo.vout,
+        address: utxo.address,
+        script: utxo.scriptPubKey,
+        satoshis: utxo.satoshis,
+      };
+    };
+
     /** @type {ToCoreUtxos} */
     insight.toCoreUtxos = function (insightUtxos) {
       let coreUtxos = insightUtxos.map(insight.toCoreUtxo);
