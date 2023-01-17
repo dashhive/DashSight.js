@@ -25,6 +25,7 @@
   /** @typedef {import('./').GetTx} GetTx */
   /** @typedef {import('./').GetTxs} GetTxs */
   /** @typedef {import('./').GetUtxos} GetUtxos */
+  /** @typedef {import('./').ToCoreUtxo} ToCoreUtxo */
   /** @typedef {import('./').ToCoreUtxos} ToCoreUtxos */
 
   /**
@@ -179,17 +180,20 @@
       return txResp.json();
     };
 
+    /** @type {ToCoreUtxo} */
+    insight.toCoreUtxo = function (utxo) {
+      return {
+        txId: utxo.txid,
+        outputIndex: utxo.vout,
+        address: utxo.address,
+        script: utxo.scriptPubKey,
+        satoshis: utxo.satoshis,
+      };
+    };
+
     /** @type {ToCoreUtxos} */
     insight.toCoreUtxos = function (insightUtxos) {
-      let coreUtxos = insightUtxos.map(function (utxo) {
-        return {
-          txId: utxo.txid,
-          outputIndex: utxo.vout,
-          address: utxo.address,
-          script: utxo.scriptPubKey,
-          satoshis: utxo.satoshis,
-        };
-      });
+      let coreUtxos = insightUtxos.map(insight.toCoreUtxo);
 
       return coreUtxos;
     };
