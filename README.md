@@ -260,7 +260,8 @@ console.log(utxos);
 ## dashsight.getCoreUtxos(addrStr)
 
 Gets all unspent transaction outputs (the usable "coins") for the given address,
-including all information needed by `dashcore-lib.Transaction`.
+including all information needed by `DashTx#hashAndSignAll()` (and
+`dashcore-lib.Transaction`).
 
 ```js
 // Base58Check-encoded Pay to Pubkey Hash (p2pkh)
@@ -298,8 +299,44 @@ See **full examples** in:
 Abridged Example:
 
 ```js
-let Dashcore = require("@dashevo/dashcore-lib");
-let Transaction = Dashcore.Transaction;
+"use strict";
+
+let DashTx = require("dashtx");
+
+let dashTx = DashTx.create({
+  version: 3,
+  sign: signTx,
+  toPublicKey: toPublicKey,
+  addrToPubKeyHash: addrToPubKeyHash,
+});
+
+async function signTx({ privateKey, hash }) {
+  let sigOpts = { canonical: true };
+  let sigBuf = await Secp256k1.sign(hash, privateKey, sigOpts);
+  return sigBuf;
+}
+
+async function toPublicKey(privKeyBuf) {
+  let Secp256k1 = require("@dashincubator/secp256k1");
+  let isCompressed = true;
+  let pubBuf = Secp256k1.getPublicKey(privKeyBuf, isCompressed);
+  return pubBuf;
+}
+
+async function addrToPubKeyHash(addr) {
+  let Base58Check = require("@dashincubator/base58check").Base58Check;
+  let b58c = Base58Check.create({
+    pubKeyHashVersion: "4c",
+    privateKeyVersion: "cc",
+  });
+  let parts = await b58c.verify(addr);
+  return parts.pubKeyHash;
+}
+
+// keys that correspond to the available utxos
+let privateKeys = {
+  XmCyQ6qARLWXap74QubFMunngoiiA1QgCL: "YOUR_PRIVATE_KEY_HERE",
+};
 
 let coreUtxos = [
   {
@@ -315,18 +352,19 @@ let payments = [
   { address: `Xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`, satoshis: 10000000 },
 ];
 
-let privateKeys = [
-  // keys that correspond to the available utxos
-  "YOUR_KEY_HERE",
-];
+let txInfo = {
+  inputs: coreUtxos,
+  outputs: payments,
+};
 
-let tx = new Transaction();
-tx.from(coreUtxos);
-tx.to(payments);
-tx.change(changeAddr);
-tx.sign(privateKeys);
+let keys = coreUtxos.map(function (utxo) {
+  let privHex = privateKeys[utxo.address];
+  let privBuf = Tx.utils.hexToU8(privHex);
+  return privBuf;
+});
+let tx = dashTx.hashAndSignAll(txInfo, keys);
 
-let txHex = tx.serialize();
+let txHex = tx.transaction;
 
 let result = await dashsight.instantSend(txHex);
 

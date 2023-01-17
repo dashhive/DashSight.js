@@ -4,7 +4,8 @@
   "description": "SDK for Dash's flavor of the Insight API",
   "main": "index.js",
   "browser": {
-    "./ws/index.js": "./dashsocket.js"
+    "./ws/index.js": "./dashsocket.js",
+    "crypto": false
   },
   "bin": {
     "dashsight-balance": "bin/balance.js",
@@ -52,13 +53,12 @@
     "dotenv": "^16.0.1"
   },
   "dependencies": {
-    "@root/request": "^1.9.2"
+    "dashtx": "^0.9.0-3"
   },
   "devDependencies": {
-    "@dashevo/dashcore-lib": "^0.19.44",
-    "@root/base58check": "^1.0.0",
-    "@types/tough-cookie": "^4.0.2",
-    "ripemd160": "^2.0.2",
-    "secp256k1": "^4.0.3"
+    "@dashincubator/base58check": "^1.3.1",
+    "@dashincubator/ripemd160": "^2.3.0",
+    "@dashincubator/secp256k1": "^1.7.1-1",
+    "@types/tough-cookie": "^4.0.2"
   }
 }
