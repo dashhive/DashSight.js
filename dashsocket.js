@@ -201,6 +201,7 @@
     }
     */
 
+      let pingTimeout
       let ws = await Eio3.connectWs(session.sid);
       wsc._ws = ws;
       ws._pingTimeout = null;
