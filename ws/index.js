@@ -4,8 +4,6 @@ let Ws = module.exports;
 Ws.DashSocket = Ws;
 Ws.DashSightWs = Ws; // deprecated
 
-let request = require("../lib/request.js");
-
 let WSClient = require("ws");
 
 /**
@@ -51,23 +49,21 @@ Ws.create = function ({
     let sidUrl = `${dashsocketBaseUrl}/?EIO=3&transport=polling&t=${now}`;
 
     let cookies = await cookieStore.get(sidUrl);
-    let sidResp = await request({
+    let sidResp = await fetch(sidUrl, {
       //agent: httpAgent,
-      url: sidUrl,
       //@ts-ignore - request function is not typed correctly
       headers: {
         Cookie: cookies,
       },
-      json: false,
     });
     if (!sidResp.ok) {
-      console.error(sidResp.toJSON());
+      console.error(await sidResp.json());
       throw new Error("bad response");
     }
     await cookieStore.set(sidUrl, sidResp);
 
     // ex: `97:0{"sid":"xxxx",...}`
-    let msg = sidResp.body;
+    let msg = await sidResp.json();
     let colonIndex = msg.indexOf(":");
     // 0 is CONNECT, which will always follow our first message
     let start = colonIndex + ":0".length;
@@ -100,10 +96,10 @@ Ws.create = function ({
     let body = `${len}:${msg}`;
 
     let cookies = await cookieStore.get(subUrl);
-    let subResp = await request({
+    let subResp = await fetch(subUrl,
+      {
       //agent: httpAgent,
       method: "POST",
-      url: subUrl,
       headers: {
         "Content-Type": "text/plain;charset=UTF-8",
         Cookie: cookies,
@@ -111,13 +107,13 @@ Ws.create = function ({
       body: body,
     });
     if (!subResp.ok) {
-      console.error(subResp.toJSON());
+      console.error(await subResp.json());
       throw new Error("bad response");
     }
     await cookieStore.set(subUrl, subResp);
 
     // "ok"
-    return subResp.body;
+    return await subResp.json();
   };
 
   /*
@@ -126,10 +122,9 @@ Ws.create = function ({
     let pollUrl = `${dashsocketBaseUrl}/?EIO=3&transport=polling&t=${now}&sid=${sid}`;
 
     let cookies = await cookieStore.get(pollUrl);
-    let pollResp = await request({
+    let pollResp = await fetch(pollUrl, {
       //agent: httpAgent,
       method: "GET",
-      url: pollUrl,
       headers: Object.assign(
         {
           Cookie: cookies,
