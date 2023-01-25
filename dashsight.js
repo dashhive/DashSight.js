@@ -5,8 +5,15 @@
   //@ts-ignore
   exports.DashSight = Dashsight;
 
-  //@ts-ignore
-  const dashfetch = exports.__dashsight_fetch || require('./dashfetch.js')
+  /**
+   * @type {RequestInit} defaultOpts
+   */
+  const defaultOpts = {
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json'
+    },
+  }
 
   const DUFFS = 100000000;
 
@@ -73,7 +80,7 @@
       console.warn(`warn: getBalance(pubkey) doesn't account for instantSend,`);
       console.warn(`      consider (await getUtxos()).reduce(countSatoshis)`);
       let txUrl = `${insightBaseUrl}/addr/${address}/?noTxList=1`;
-      let txResp = await dashfetch(txUrl);
+      let txResp = await Dashsight.fetch(txUrl);
 
       /** @type {InsightBalance} */
       let data = txResp.body;
@@ -104,7 +111,7 @@
     /** @type {GetUtxos} */
     insight.getUtxos = async function (address) {
       let utxoUrl = `${insightBaseUrl}/addr/${address}/utxo`;
-      let utxoResp = await dashfetch(utxoUrl);
+      let utxoResp = await Dashsight.fetch(utxoUrl);
 
       /** @type Array<InsightUtxo> */
       let utxos = await utxoResp.json();
@@ -126,7 +133,7 @@
     /** @type {GetTx} */
     insight.getTx = async function (txid) {
       let txUrl = `${insightBaseUrl}/tx/${txid}`;
-      let txResp = await dashfetch(txUrl);
+      let txResp = await Dashsight.fetch(txUrl);
 
       /** @type InsightTx */
       let data = await txResp.json();
@@ -136,7 +143,7 @@
     /** @type {GetTxs} */
     insight.getTxs = async function (addr, maxPages) {
       let txUrl = `${insightBaseUrl}/txs?address=${addr}&pageNum=0`;
-      let txResp = await dashfetch(txUrl);
+      let txResp = await Dashsight.fetch(txUrl);
 
       /** @type {InsightTxResponse} */
       let body = await txResp.json();
@@ -153,7 +160,7 @@
     async function getAllPages(body, addr, maxPages) {
       let pagesTotal = Math.min(body.pagesTotal, maxPages);
       for (let cursor = 1; cursor < pagesTotal; cursor += 1) {
-        let nextResp = await dashfetch(
+        let nextResp = await Dashsight.fetch(
           `${insightBaseUrl}/txs?address=${addr}&pageNum=${cursor}`);
         nextResp = await nextResp.json();
         // Note: this could still be wrong, but I don't think we have
@@ -170,9 +177,10 @@
       //   - https://insight.dash.org/insight-api-dash/tx/sendix
       //   - https://dashsight.dashincubator.dev/insight-api/tx/sendix
       let instUrl = `${dashsightBaseUrl}/tx/sendix`;
-      let txResp = await dashfetch(instUrl, {
+      let txResp = await Dashsight.fetch(instUrl, {
         method: "POST",
         body: {
+          // @ts-ignore
           rawtx: hexTx,
         }
       });
@@ -274,8 +282,33 @@
     return insight;
   };
 
+  /**
+   * @param {String | URL | Request} url
+   * @param {RequestInit} [opts]
+   */
+  Dashsight.fetch = async function dashfetch(url, opts) {
+    opts = Object.assign({}, defaultOpts, opts)
+    if (opts.body) {
+      opts.body = JSON.stringify(opts.body)
+    }
+
+    let resp = await fetch(url, opts);
+    if (resp.ok) {
+      return resp;
+    }
+
+    let err = new Error(
+      `http request was ${resp.status}, not ok. See err.response for details.`,
+    );
+    // @ts-ignore
+    err.response = resp.json();
+    throw err;
+  }
+
   if ("undefined" !== typeof module) {
     module.exports.Dashsight = Dashsight;
     module.exports.create = Dashsight.create;
+    module.exports.Dashfetch = Dashsight.fetch;
+
   }
 })(("undefined" !== typeof module && module.exports) || window);
