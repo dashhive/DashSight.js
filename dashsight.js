@@ -172,6 +172,9 @@
       let instUrl = `${dashsightBaseUrl}/tx/sendix`;
       let txResp = await dashfetch(instUrl, {
         method: "POST",
+        body: {
+          rawtx: hexTx,
+        }
       });
       if (!txResp.ok) {
         // TODO better error check
