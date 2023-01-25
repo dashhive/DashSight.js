@@ -38,8 +38,6 @@ dashsight.getInstantBalance(address).then(function (info) {
 ## Browser
 
 ```html
-<script src="https://unpkg.com/@root/request@1.9.2/urequest.js"></script>
-<script src="https://unpkg.com/dashsight@1.2.0/dashrequest.js"></script>
 <script src="https://unpkg.com/dashsight@1.2.0/dashsight.js"></script>
 <script src="https://unpkg.com/dashsight@1.2.0/dashsocket.js"></script>
 ```
