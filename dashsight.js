@@ -8,12 +8,12 @@
   /**
    * @type {RequestInit} defaultOpts
    */
-  const defaultOpts = {
+  let defaultOpts = {
     headers: {
-      'Accept': 'application/json',
-      'Content-Type': 'application/json'
+      Accept: "application/json",
+      "Content-Type": "application/json",
     },
-  }
+  };
 
   const DUFFS = 100000000;
 
@@ -161,7 +161,8 @@
       let pagesTotal = Math.min(body.pagesTotal, maxPages);
       for (let cursor = 1; cursor < pagesTotal; cursor += 1) {
         let nextResp = await Dashsight.fetch(
-          `${insightBaseUrl}/txs?address=${addr}&pageNum=${cursor}`);
+          `${insightBaseUrl}/txs?address=${addr}&pageNum=${cursor}`,
+        );
         nextResp = await nextResp.json();
         // Note: this could still be wrong, but I don't think we have
         // a better way to page so... whatever
@@ -182,7 +183,7 @@
         body: {
           // @ts-ignore
           rawtx: hexTx,
-        }
+        },
       });
       if (!txResp.ok) {
         // TODO better error check
@@ -287,9 +288,9 @@
    * @param {RequestInit} [opts]
    */
   Dashsight.fetch = async function dashfetch(url, opts) {
-    opts = Object.assign({}, defaultOpts, opts)
+    opts = Object.assign({}, defaultOpts, opts);
     if (opts.body) {
-      opts.body = JSON.stringify(opts.body)
+      opts.body = JSON.stringify(opts.body);
     }
 
     let resp = await fetch(url, opts);
@@ -303,12 +304,11 @@
     // @ts-ignore
     err.response = resp.json();
     throw err;
-  }
+  };
 
   if ("undefined" !== typeof module) {
     module.exports.Dashsight = Dashsight;
     module.exports.create = Dashsight.create;
     module.exports.Dashfetch = Dashsight.fetch;
-
   }
 })(("undefined" !== typeof module && module.exports) || window);

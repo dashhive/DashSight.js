@@ -201,7 +201,7 @@
     }
     */
 
-      let pingTimeout
+      let pingTimeout;
       let ws = await Eio3.connectWs(session.sid);
       wsc._ws = ws;
       ws._pingTimeout = null;
@@ -271,7 +271,7 @@
       function _onClose() {
         ws.onclose = null;
         ws.removeEventListener("message", _onMessage);
-        clearTimeout(ws._pingTimeout)
+        clearTimeout(ws._pingTimeout);
         if (debug) {
           console.debug("WebSocket Close");
         }

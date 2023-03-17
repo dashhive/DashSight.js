@@ -96,8 +96,7 @@ Ws.create = function ({
     let body = `${len}:${msg}`;
 
     let cookies = await cookieStore.get(subUrl);
-    let subResp = await fetch(subUrl,
-      {
+    let subResp = await fetch(subUrl, {
       //agent: httpAgent,
       method: "POST",
       headers: {
