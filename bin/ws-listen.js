@@ -59,4 +59,10 @@ async function main() {
 main().catch(function (err) {
   console.error("Fail:");
   console.error(err.stack || err);
+  if (err.response) {
+    console.error(err.response.statusCode);
+    console.error(err.response.statusText);
+    console.error(err.response.headers);
+    console.error(err.response.body);
+  }
 });
