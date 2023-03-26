@@ -9,7 +9,7 @@ let WSClient = require("ws");
 /**
  * @typedef {Object} WsOpts
  * @prop {String} [baseUrl] - (deprecated by dashsocketBaseUrl) ex: https://insight.dash.org
- * @prop {CookieStore} cookieStore - only needed for insight APIs hosted behind an AWS load balancer
+ * @prop {import('../').CookieStore} cookieStore - only needed for insight APIs hosted behind an AWS load balancer
  * @prop {Boolean} debug
  * @prop {Function} onClose
  * @prop {Function} onError
@@ -48,22 +48,19 @@ Ws.create = function ({
     let now = Date.now();
     let sidUrl = `${dashsocketBaseUrl}/?EIO=3&transport=polling&t=${now}`;
 
-    let cookies = await cookieStore.get(sidUrl);
-    let sidResp = await fetch(sidUrl, {
+    let cookiesStr = await cookieStore.get(sidUrl);
+    let sidResp = await Ws.fetch(sidUrl, {
       //agent: httpAgent,
       //@ts-ignore - request function is not typed correctly
       headers: {
-        Cookie: cookies,
+        Cookie: cookiesStr,
       },
     });
-    if (!sidResp.ok) {
-      console.error(await sidResp.json());
-      throw new Error("bad response");
-    }
+
     await cookieStore.set(sidUrl, sidResp);
 
     // ex: `97:0{"sid":"xxxx",...}`
-    let msg = await sidResp.json();
+    let msg = sidResp.body || "";
     let colonIndex = msg.indexOf(":");
     // 0 is CONNECT, which will always follow our first message
     let start = colonIndex + ":0".length;
@@ -95,24 +92,21 @@ Ws.create = function ({
     let len = msg.length;
     let body = `${len}:${msg}`;
 
-    let cookies = await cookieStore.get(subUrl);
-    let subResp = await fetch(subUrl, {
+    let cookiesStr = await cookieStore.get(subUrl);
+    let subResp = await Ws.fetch(subUrl, {
       //agent: httpAgent,
       method: "POST",
       headers: {
         "Content-Type": "text/plain;charset=UTF-8",
-        Cookie: cookies,
+        Cookie: cookiesStr,
       },
       body: body,
     });
-    if (!subResp.ok) {
-      console.error(await subResp.json());
-      throw new Error("bad response");
-    }
+
     await cookieStore.set(subUrl, subResp);
 
     // "ok"
-    return await subResp.json();
+    return subResp.body;
   };
 
   /*
@@ -147,14 +141,15 @@ Ws.create = function ({
   Eio3.connectWs = async function (sid) {
     let dashsocketBaseUrlPart = dashsocketBaseUrl.slice(4); // trim leading 'http'
     let url = `ws${dashsocketBaseUrlPart}/?EIO=3&transport=websocket&sid=${sid}`;
+    let sidUrl = `${dashsocketBaseUrl}/`;
 
-    let cookies = await cookieStore.get(`${dashsocketBaseUrl}/`);
+    let cookiesStr = await cookieStore.get(sidUrl);
     let ws = new WSClient(url, {
       //agent: httpAgent,
       //perMessageDeflate: false,
       //@ts-ignore - see above
       headers: {
-        Cookie: cookies,
+        Cookie: cookiesStr,
       },
     });
 
@@ -169,10 +164,25 @@ Ws.create = function ({
       ws.once("error", function (err) {
         if (onError) {
           onError(err);
-        } else {
-          console.error("WebSocket Error:");
-          console.error(err);
+          return;
         }
+
+        console.error("WebSocket Error:");
+        console.error(err);
+      });
+
+      ws.once("unexpected-response", function (req, res) {
+        let err = new Error("unexpected-response");
+        //@ts-ignore
+        err.response = res;
+
+        if (onError) {
+          onError(err);
+          return;
+        }
+
+        console.error("WebSocket Unexpected Response:");
+        console.error(err);
       });
 
       ws.once("message", function message(data) {
@@ -261,7 +271,7 @@ Ws.create = function ({
         return;
       }
 
-      /** @type {InsightPush} */
+      /** @type {import('../').InsightPush} */
       let [evname, data] = JSON.parse(msg.slice(2));
       if (onMessage) {
         onMessage(evname, data);
@@ -303,7 +313,7 @@ Ws.create = function ({
 /**
  * @callback Finder
  * @param {String} evname
- * @param {InsightSocketEventData} data
+ * @param {import('../').InsightSocketEventData} data
  */
 
 /**
@@ -359,8 +369,8 @@ Ws.listen = async function (dashsocketBaseUrl, find, opts) {
  * @param {String} addr
  * @param {Number} [amount]
  * @param {Number} [maxTxLockWait]
- * @param {WsOpts} [opts]
- * @returns {Promise<SocketPayment>}
+ * @param {Partial<WsOpts>} [opts]
+ * @returns {Promise<import('../').SocketPayment>}
  */
 Ws.waitForVout = async function (
   dashsocketBaseUrl,
@@ -374,13 +384,13 @@ Ws.waitForVout = async function (
   }
 
   // Listen for Response
-  /** @type SocketPayment */
+  /** @type {import('../').SocketPayment} */
   let mempoolTx;
   return await Ws.listen(dashsocketBaseUrl, findResponse, opts);
 
   /**
    * @param {String} evname
-   * @param {InsightSocketEventData} data
+   * @param {import('../').InsightSocketEventData} data
    */
   function findResponse(evname, data) {
     if (!["tx", "txlock"].includes(evname)) {
@@ -397,37 +407,114 @@ Ws.waitForVout = async function (
 
     let result;
     // TODO should fetch tx and match hotwallet as vin
-    data.vout.some(function (vout) {
-      if (!(addr in vout)) {
-        return false;
-      }
-
-      let duffs = vout[addr];
-      if (amount && duffs !== amount) {
-        return false;
-      }
-
-      let newTx = {
-        address: addr,
-        timestamp: now,
-        txid: data.txid,
-        satoshis: duffs,
-        txlock: data.txlock,
-      };
-
-      if ("txlock" !== evname) {
-        if (!mempoolTx) {
-          mempoolTx = newTx;
+    data.vout.some(
+      /** @param {Record<String,Number>} vout */
+      function (vout) {
+        if (!(addr in vout)) {
+          return false;
         }
-        return false;
-      }
 
-      result = newTx;
-      return true;
-    });
+        let duffs = vout[addr];
+        if (amount && duffs !== amount) {
+          return false;
+        }
+
+        let newTx = {
+          address: addr,
+          timestamp: now,
+          txid: data.txid,
+          satoshis: duffs,
+          txlock: data.txlock,
+        };
+
+        if ("txlock" !== evname) {
+          if (!mempoolTx) {
+            mempoolTx = newTx;
+          }
+          return false;
+        }
+
+        result = newTx;
+        return true;
+      },
+    );
 
     return result;
   }
+};
+
+/** @type {RequestInit} */
+let defaultRequest = {
+  mode: "cors",
+  credentials: "include",
+};
+
+/**
+ * @param {String | URL | Request} url
+ * @param {RequestInit} [_opts]
+ */
+Ws.fetch = async function dashfetch(url, _opts) {
+  let opts = Object.assign(defaultRequest, _opts);
+
+  let resp = await fetch(url, opts);
+  /** @type {Record<String,String|Array<String>>} */
+  let headers = {};
+
+  // for the Set-Cookie headers through AWS load balancer
+  let headerEntries = resp.headers.entries();
+  for (let [key, value] of headerEntries) {
+    if (!headers[key]) {
+      headers[key] = value;
+      continue;
+    }
+
+    let isArray = Array.isArray(headers[key]);
+    if (!isArray) {
+      //@ts-ignore
+      headers[key] = [headers[key]];
+    }
+    //@ts-ignore
+    headers[key].push(value);
+  }
+
+  let body = await resp.text();
+
+  let response = {
+    ok: resp.ok,
+    statusCode: resp.status, // backwards compat
+    statusText: resp.statusText,
+    headers: headers,
+    body: body,
+    toJSON: function () {
+      return {
+        ok: response.ok,
+        statusCode: response.statusCode,
+        statusText: response.statusText,
+        headers: response.headers,
+        body: response.body,
+      };
+    },
+    get status() {
+      console.warn(
+        "deprecated: please use either 'statusText' or 'statusCode' (node.js and browser both have 'status', but flipped)",
+      );
+      return resp.statusText;
+    },
+    _request: opts,
+    _response: resp,
+  };
+
+  if (resp.ok) {
+    return response;
+  }
+
+  let err = new Error(
+    `http request was ${resp.status}, not ok. See err.response for details.`,
+  );
+
+  // @ts-ignore
+  err.response = response;
+  throw err;
 };
 
 /*
