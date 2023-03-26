@@ -5,16 +5,6 @@
   //@ts-ignore
   exports.DashSight = Dashsight;
 
-  /**
-   * @type {RequestInit} defaultOpts
-   */
-  let defaultOpts = {
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
-  };
-
   const DUFFS = 100000000;
 
   /** @typedef {import('./').CoreUtxo} CoreUtxo */
@@ -114,7 +104,7 @@
       let utxoResp = await Dashsight.fetch(utxoUrl);
 
       /** @type Array<InsightUtxo> */
-      let utxos = await utxoResp.json();
+      let utxos = utxoResp.body;
       return utxos;
     };
 
@@ -135,8 +125,9 @@
       let txUrl = `${insightBaseUrl}/tx/${txid}`;
       let txResp = await Dashsight.fetch(txUrl);
 
-      /** @type InsightTx */
-      let data = await txResp.json();
+      /** @type {InsightTx} */
+      //@ts-ignore
+      let data = txResp.body;
       return data;
     };
 
@@ -146,7 +137,8 @@
       let txResp = await Dashsight.fetch(txUrl);
 
       /** @type {InsightTxResponse} */
-      let body = await txResp.json();
+      //@ts-ignore
+      let body = txResp.body;
 
       let data = await getAllPages(body, addr, maxPages);
       return data;
@@ -163,11 +155,11 @@
         let nextResp = await Dashsight.fetch(
           `${insightBaseUrl}/txs?address=${addr}&pageNum=${cursor}`,
         );
-        nextResp = await nextResp.json();
+        let nextBody = nextResp.body;
         // Note: this could still be wrong, but I don't think we have
         // a better way to page so... whatever
         // @ts-ignore
-        body.txs = body.txs.concat(nextResp?.txs);
+        body.txs = body.txs.concat(nextBody?.txs);
       }
       return body;
     }
@@ -189,7 +181,7 @@
         // TODO better error check
         throw new Error(JSON.stringify(txResp.body, null, 2));
       }
-      return txResp.json();
+      return txResp.body;
     };
 
     /** @type {ToCoreUtxo} */
@@ -282,26 +274,80 @@
     return insight;
   };
 
+  /** @type {HeadersInit} */
+  let defaultHeaders = {
+    Accept: "application/json",
+    "Content-Type": "application/json",
+  };
+
   /**
    * @param {String | URL | Request} url
-   * @param {RequestInit} [opts]
+   * @param {RequestInit} [_opts]
    */
-  Dashsight.fetch = async function dashfetch(url, opts) {
-    opts = Object.assign({}, defaultOpts, opts);
+  Dashsight.fetch = async function dashfetch(url, _opts) {
+    let opts = Object.assign({ headers: {} }, _opts);
+    Object.assign(opts.headers, defaultHeaders, _opts?.headers);
+
     if (opts.body) {
-      opts.body = JSON.stringify(opts.body);
+      //@ts-ignore
+      let contentType = opts.headers["Content-Type"] || "";
+      let isJson = contentType.startsWith("application/json");
+      if (isJson) {
+        opts.body = JSON.stringify(opts.body);
+      }
     }
 
     let resp = await fetch(url, opts);
+    let headers = Object.fromEntries(resp.headers.entries());
+    let rawBody = await resp.text();
+    let contentType = resp.headers.get("content-type") || "";
+    let isJson = contentType.startsWith("application/json");
+
+    /** @type {Object|Array<any>|String} */
+    let body = rawBody;
+    if (isJson) {
+      try {
+        body = JSON.parse(rawBody);
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    let response = {
+      ok: resp.ok,
+      statusCode: resp.status, // backwards compat
+      statusText: resp.statusText,
+      headers: headers,
+      body: body,
+      toJSON: function () {
+        return {
+          ok: response.ok,
+          statusCode: response.statusCode,
+          statusText: response.statusText,
+          headers: headers,
+          body: body,
+        };
+      },
+      get status() {
+        console.warn(
+          "deprecated: please use either 'statusText' or 'statusCode' (node.js and browser both have 'status', but flipped)",
+        );
+        return resp.statusText;
+      },
+      _request: opts,
+      _response: resp,
+    };
+
     if (resp.ok) {
-      return resp;
+      return response;
     }
 
     let err = new Error(
       `http request was ${resp.status}, not ok. See err.response for details.`,
     );
+
     // @ts-ignore
-    err.response = resp.json();
+    err.response = response;
     throw err;
   };
 
