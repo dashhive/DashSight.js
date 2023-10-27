@@ -288,94 +288,21 @@ Example output:
 
 ## dashsight.instantSend(txHex)
 
-Send a signed transaction to Dash's Insight API for relay and broadcast to the
+Send a _signed transaction_ to Dash's Insight API for relay and broadcast to the
 Dash network.
 
-See **full examples** in:
-
-- [./examples/balance-transfer.js](/examples/balance-transfer.js).
-- [./examples/multi-send.js](/examples/multi-send.js).
-
-Abridged Example:
-
 ```js
-"use strict";
-
-let DashTx = require("dashtx");
-
-let dashTx = DashTx.create({
-  version: 3,
-  sign: signTx,
-  toPublicKey: toPublicKey,
-  addrToPubKeyHash: addrToPubKeyHash,
-});
-
-async function signTx({ privateKey, hash }) {
-  let sigOpts = { canonical: true };
-  let sigBuf = await Secp256k1.sign(hash, privateKey, sigOpts);
-  return sigBuf;
-}
-
-async function toPublicKey(privKeyBuf) {
-  let Secp256k1 = require("@dashincubator/secp256k1");
-  let isCompressed = true;
-  let pubBuf = Secp256k1.getPublicKey(privKeyBuf, isCompressed);
-  return pubBuf;
-}
-
-async function addrToPubKeyHash(addr) {
-  let Base58Check = require("@dashincubator/base58check").Base58Check;
-  let b58c = Base58Check.create({
-    pubKeyHashVersion: "4c",
-    privateKeyVersion: "cc",
-  });
-  let parts = await b58c.verify(addr);
-  return parts.pubKeyHash;
-}
-
-// keys that correspond to the available utxos
-let privateKeys = {
-  XmCyQ6qARLWXap74QubFMunngoiiA1QgCL: "YOUR_PRIVATE_KEY_HERE",
-};
-
-let coreUtxos = [
-  {
-    address: "XmCyQ6qARLWXap74QubFMunngoiiA1QgCL",
-    outputIndex: 0,
-    satoshis: 99809,
-    script: "76a91473640d816ff4161d8c881da78983903bf9eba2d988ac",
-    txId: "f92e66edc9c8da41de71073ef08d62c56f8752a3f4e29ced6c515e0b1c074a38",
-  },
-];
-
-let payments = [
-  { address: `Xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`, satoshis: 10000000 },
-];
-
-let txInfo = {
-  inputs: coreUtxos,
-  outputs: payments,
-};
-
-let keys = coreUtxos.map(function (utxo) {
-  let privHex = privateKeys[utxo.address];
-  let privBuf = Tx.utils.hexToU8(privHex);
-  return privBuf;
-});
-let tx = dashTx.hashAndSignAll(txInfo, keys);
-
-let txHex = tx.transaction;
+let txHex = 'xxxxxxxx...';
 
 let result = await dashsight.instantSend(txHex);
 
 console.log(result);
 ```
 
-Example transaction hex:
-
+Example transaction hex (input): \
 (inspect at <https://live.blockcypher.com/dash/decodetx/>)
 
-```txt
+```text
 030000000187ab81e88e2c19ca354f33f14d5b43b60d171ac851eb97dddd271b510cadbdb0000000
 006b483045022100ec38c77b9f285d4c9aeeba36c1fac51bb88f7443185caf7eec21b170cc5d4062
 0220098dcb5d90cb5f4ddc75ef54e2b2d1dbf220eb6fc28eed61c43192c0a420802c012103a6da86
@@ -388,3 +315,9 @@ Example output:
 ```json
 { "txid": "0f90cf5e03e8b8f8c4468f60fc8328cfcd5617fc2163f485fabfd227c692bf93" }
 ```
+
+Guides & Code Examples for creating and signing `txHex`:
+
+- [How to create a txHex with DashTx + DashKeys](https://github.com/dashhive/DashSight.js/issues/27)
+- [Balance Transfer + DashSight: ./examples/balance-transfer.js](/examples/balance-transfer.js).
+- [Multi-Payout + DashSight: ./examples/multi-send.js](/examples/multi-send.js).
