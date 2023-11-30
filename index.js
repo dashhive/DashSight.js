@@ -7,9 +7,11 @@ module.exports = require("./dashsight.js");
  * @prop {GetBalance} getBalance
  * @prop {GetCoreUtxos} getCoreUtxos
  * @prop {GetInstantBalance} getInstantBalance
+ * @prop {GetInstantBalances} getInstantBalances
  * @prop {GetTx} getTx
  * @prop {GetTxs} getTxs
  * @prop {GetUtxos} getUtxos
+ * @prop {GetAllUtxos} getAllUtxos
  * @prop {InstantSend} instantSend
  * @prop {ToCoreUtxos} toCoreUtxos
  */
@@ -29,8 +31,21 @@ module.exports = require("./dashsight.js");
  */
 
 /**
+ * Instant Balance is accurate with Instant Send
+ * @callback GetInstantBalances
+ * @param {String | Array<String>} addresses
+ * @returns {Promise<Array<InstantBalance>>}
+ */
+
+/**
  * @callback GetUtxos
  * @param {String} address
+ * @returns {Promise<Array<InsightUtxo>>}
+ */
+
+/**
+ * @callback GetAllUtxos
+ * @param {String | Array<String>} addresses
  * @returns {Promise<Array<InsightUtxo>>}
  */
 

@@ -28,10 +28,13 @@
   /** @typedef {import('./').DashSightInstance} DashSightInstance */
   /** @typedef {import('./').GetBalance} GetBalance */
   /** @typedef {import('./').GetCoreUtxos} GetCoreUtxos */
+  /** @typedef {import('./').InstantBalance} InstantBalance */
   /** @typedef {import('./').GetInstantBalance} GetInstantBalance */
+  /** @typedef {import('./').GetInstantBalances} GetInstantBalances */
   /** @typedef {import('./').GetTx} GetTx */
   /** @typedef {import('./').GetTxs} GetTxs */
   /** @typedef {import('./').GetUtxos} GetUtxos */
+  /** @typedef {import('./').GetAllUtxos} GetAllUtxos */
   /** @typedef {import('./').ToCoreUtxo} ToCoreUtxo */
   /** @typedef {import('./').ToCoreUtxos} ToCoreUtxos */
 
@@ -108,10 +111,67 @@
       };
     };
 
+    /** @type {GetInstantBalances} */
+    insight.getInstantBalances = async function (addresses) {
+      let utxos = await insight.getAllUtxos(addresses);
+      /** @type {Record<String, InstantBalance>} */
+      let balanceOfAddrs = {}
+
+      utxos?.forEach(function (utxo) {
+        let balanceDuffs = utxo.satoshis || 0
+        let balanceDash = (balanceDuffs / DUFFS).toFixed(8);
+
+        let utxoAddrSum = balanceOfAddrs[utxo.address] || {}
+
+        let balance = utxoAddrSum.balance || 0
+        let balanceSat = utxoAddrSum.balanceSat || 0
+        let _utxoCount = utxoAddrSum._utxoCount || 0
+        let _utxoAmounts = utxoAddrSum._utxoAmounts || []
+        _utxoAmounts.push(utxo.satoshis)
+
+        utxoAddrSum = {
+          addrStr: utxo.address,
+          balance: balance + parseFloat(balanceDash),
+          balanceSat: balanceSat + balanceDuffs,
+          _utxoCount: _utxoCount + 1,
+          _utxoAmounts: _utxoAmounts,
+        }
+
+        balanceOfAddrs[utxo.address] = utxoAddrSum
+      });
+
+      return Object.values(balanceOfAddrs);
+    };
+
     /** @type {GetUtxos} */
     insight.getUtxos = async function (address) {
       let utxoUrl = `${insightBaseUrl}/addr/${address}/utxo`;
       let utxoResp = await Dashsight.fetch(utxoUrl);
+
+      /** @type Array<InsightUtxo> */
+      let utxos = await utxoResp.json();
+      return utxos;
+    };
+
+    /** @type {GetAllUtxos} */
+    insight.getAllUtxos = async function (addresses) {
+      let addrs = addresses
+      if (Array.isArray(addrs)) {
+        addrs = addrs.join(",")
+      }
+
+      // GET `${insightBaseUrl}/addrs/${addrs}/utxo`
+      // also works unless you have too many addrs
+      // then you get a `414 URI Too Long` error
+      let utxoUrl = `${insightBaseUrl}/addrs/utxo`;
+      // thus POST is used
+      let utxoResp = await Dashsight.fetch(utxoUrl, {
+        method: 'POST',
+        body: {
+          // @ts-ignore
+          addrs,
+        },
+      });
 
       /** @type Array<InsightUtxo> */
       let utxos = await utxoResp.json();
