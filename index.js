@@ -6,6 +6,7 @@ module.exports = require("./dashsight.js");
  * @typedef DashSightInstance
  * @prop {GetBalance} getBalance
  * @prop {GetCoreUtxos} getCoreUtxos
+ * @prop {GetMultiCoreUtxos} getMultiCoreUtxos
  * @prop {GetInstantBalance} getInstantBalance
  * @prop {GetInstantBalances} getInstantBalances
  * @prop {GetTx} getTx
@@ -58,6 +59,15 @@ module.exports = require("./dashsight.js");
  */
 
 /**
+ * @callback GetMultiCoreUtxos
+ * @param {String | Array<String>} addresses
+ * @returns {Promise<Array<CoreUtxo>>}
+ *
+ * @TODO handle multiple input addresses
+ */
+
+
+/**
  * @callback GetTx
  * @param {String} txid
  * @returns {Promise<InsightTx>}
@@ -68,6 +78,20 @@ module.exports = require("./dashsight.js");
  * @param {String} addr
  * @param {Number} maxPages
  * @returns {Promise<InsightTxResponse>}
+ */
+
+// https://github.com/dashpay/insight-api#transactions-for-multiple-addresses
+// noAsm (optional): 1 (will omit script asm from results)
+// noScriptSig (optional): 1 (will omit the scriptSig from all inputs)
+// noSpent (option): 1 (will omit spent information per output)
+/**
+ * @callback GetAddrsTxs
+ * @param {String | Array<String>} addresses
+ * @param {Number} [from]
+ * @param {Number} [to]
+ * @param {Number} [fromHeight]
+ * @param {Number} [toHeight]
+ * @returns {Promise<InsightAddrsTxResponse>}
  */
 
 /**
@@ -163,6 +187,16 @@ module.exports = require("./dashsight.js");
  * @typedef {Object} InsightTxResponse
  * @property {Number} pagesTotal
  * @property {Array<InsightTx>} txs
+ */
+
+/**
+ * @typedef {Object} InsightAddrsTxResponse
+ * @property {Number} totalItems
+ * @property {Number} from
+ * @property {Number} to
+ * @property {Number} [fromHeight]
+ * @property {Number} [toHeight]
+ * @property {Array<InsightTx>} items
  */
 
 /**
