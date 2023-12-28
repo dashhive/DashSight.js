@@ -24,7 +24,6 @@
   /** @typedef {import('./').InsightTxVin} InsightTxVin */
   /** @typedef {import('./').InsightTxVout} InsightTxVout */
   /** @typedef {import('./').InsightUtxo} InsightUtxo */
-  // /** @typedef {import('./').InsightAddrsTxResponse} InsightAddrsTxResponse */
   /** @typedef {import('./').InstantSend} InstantSend */
   /** @typedef {import('./').DashSightInstance} DashSightInstance */
   /** @typedef {import('./').GetBalance} GetBalance */
@@ -35,7 +34,6 @@
   /** @typedef {import('./').GetInstantBalances} GetInstantBalances */
   /** @typedef {import('./').GetTx} GetTx */
   /** @typedef {import('./').GetTxs} GetTxs */
-  // /** @typedef {import('./').GetAddrsTxs} GetAddrsTxs */
   /** @typedef {import('./').GetUtxos} GetUtxos */
   /** @typedef {import('./').GetAllUtxos} GetAllUtxos */
   /** @typedef {import('./').ToCoreUtxo} ToCoreUtxo */
@@ -158,7 +156,7 @@
     };
 
     /** @type {(addresses: string | string[]) => String} */
-    insight.joinAddrs = function (addresses) {
+    insight._joinAddrs = function (addresses) {
       let addrs = addresses
 
       if (Array.isArray(addrs)) {
@@ -168,20 +166,9 @@
       return addrs
     };
 
-    // /** @type {(addresses: string | string[]) => string[]} */
-    // insight.splitAddrs = function (addresses) {
-    //   let addrs = addresses
-
-    //   if (!Array.isArray(addrs)) {
-    //     addrs = addrs.split(",")
-    //   }
-
-    //   return addrs
-    // };
-
     /** @type {GetAllUtxos} */
     insight.getAllUtxos = async function (addresses) {
-      let addrs = insight.joinAddrs(addresses)
+      let addrs = insight._joinAddrs(addresses)
 
       // GET `${insightBaseUrl}/addrs/${addrs}/utxo`
       // also works unless you have too many addrs
@@ -217,18 +204,6 @@
     insight.getMultiCoreUtxos = async function (addresses) {
       let utxos = await insight.getAllUtxos(addresses);
       return insight.toCoreUtxos(utxos);
-
-      // let result = await insight.getAddrsTx(addresses);
-
-      // if (result.totalItems > result.to) {
-      //   let utxos = await insight.getAllUtxos(addresses);
-      //   return insight.toCoreUtxos(utxos);
-      // }
-
-      // let addrs = insight.splitAddrs(addresses)
-      // let coreUtxos = await getMultiTxUtxos(addrs, result.items);
-
-      // return coreUtxos;
     };
 
     /** @type {GetTx} */
@@ -252,76 +227,6 @@
       let data = await getAllPages(body, addr, maxPages);
       return data;
     };
-
-    // /** @type {GetAddrsTxs} */
-    // insight.getAddrsTx = async function (
-    //   addresses,
-    //   from,
-    //   to
-    // ) {
-    //   let addrs = insight.joinAddrs(addresses)
-    //   let txUrl = `${insightBaseUrl}/addrs/txs`;
-    //   let txResp = await Dashsight.fetch(txUrl, {
-    //     method: 'POST',
-    //     body: {
-    //       // @ts-ignore
-    //       addrs,
-    //       // from: 0,
-    //       // to: 20,
-    //       from,
-    //       to,
-    //       // fromHeight,
-    //       // toHeight,
-    //     },
-    //   });
-
-    //   /** @type {InsightAddrsTxResponse} */
-    //   let body = await txResp.json();
-
-    //   return body;
-    // };
-
-    // /** @type {GetAddrsTxs} */
-    // insight.getAddrsTxs = async function (
-    //   addresses,
-    //   from,
-    //   to
-    // ) {
-    //   let addrs = insight.joinAddrs(addresses);
-    //   let body = await insight.getAddrsTx(
-    //     addrs,
-    //   );
-
-    //   let data = body
-
-    //   if (!from && body.totalItems > body.items.length) {
-    //     data = await getAllTxs(body, addrs, body.totalItems);
-    //   }
-
-    //   return data;
-    // };
-
-    // /**
-    //  * @param {InsightAddrsTxResponse} body
-    //  * @param {String | Array<String>} addrs
-    //  * @param {Number} maxTotal
-    //  */
-    // async function getAllTxs(
-    //   body, addrs, maxTotal = 100, limit = 20
-    // ) {
-    //   let totalItems = Math.min(body.totalItems, maxTotal);
-    //   for (let from = body.to; from < totalItems; from += limit) {
-    //     let nextResp = await insight.getAddrsTx(
-    //       addrs,
-    //       from,
-    //       from + limit,
-    //     );
-    //     // @ts-ignore
-    //     body.items = body.items.concat(nextResp?.items);
-    //     body.to = nextResp?.to;
-    //   }
-    //   return body;
-    // }
 
     /**
      * @param {InsightTxResponse} body
@@ -445,78 +350,6 @@
             txId: tx.txid,
           });
         }
-      });
-
-      return coreUtxos;
-    }
-
-    /**
-     * Handles UTXOs that have NO MORE THAN ONE page of transactions
-     * @param {Array<String>} addresses
-     * @param {Array<InsightTx>} txs - soonest-first-sorted transactions
-     */
-    async function getMultiTxUtxos(addresses, txs) {
-      /** @type { Array<CoreUtxo> } */
-      let coreUtxos = [];
-
-      addresses.forEach(function (address, i) {
-        txs.forEach(function (tx, i) {
-          //let fee = tx.valueIn - tx.valueOut;
-          // consumed as an input
-          tx.vout.forEach(addUnspentOutputs);
-          tx.vin.forEach(removeSpentOutputs);
-
-          /**
-           * @param {InsightTxVin} vin
-           */
-          function removeSpentOutputs(vin) {
-            if (address !== vin.addr) {
-              return;
-            }
-
-            let spentIndex = -1;
-            coreUtxos.some(function (coreUtxo, i) {
-              if (coreUtxo.txId !== vin.txid) {
-                return false;
-              }
-              if (coreUtxo.outputIndex !== vin.vout) {
-                return false;
-              }
-              if (coreUtxo.satoshis !== vin.valueSat) {
-                return false;
-              }
-              spentIndex = i;
-            });
-            if (spentIndex >= 0) {
-              // remove this output as unspent
-              coreUtxos.splice(spentIndex, 1);
-            }
-          }
-
-          /**
-           * @param {InsightTxVout} vout
-           * @param {Number} i
-           */
-          function addUnspentOutputs(vout, i) {
-            // in theory this makes all of the vin checking above redundant
-            if (vout.spentTxId) {
-              return;
-            }
-
-            if (!vout.scriptPubKey.addresses.includes(address)) {
-              return;
-            }
-
-            let value = Math.round(parseFloat(vout.value) * DUFFS);
-            coreUtxos.push({
-              address: address,
-              outputIndex: i,
-              satoshis: value,
-              script: vout.scriptPubKey.hex,
-              txId: tx.txid,
-            });
-          }
-        });
       });
 
       return coreUtxos;

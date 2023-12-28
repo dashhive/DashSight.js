@@ -80,20 +80,6 @@ module.exports = require("./dashsight.js");
  * @returns {Promise<InsightTxResponse>}
  */
 
-// https://github.com/dashpay/insight-api#transactions-for-multiple-addresses
-// noAsm (optional): 1 (will omit script asm from results)
-// noScriptSig (optional): 1 (will omit the scriptSig from all inputs)
-// noSpent (option): 1 (will omit spent information per output)
-/**
- * @callback GetAddrsTxs
- * @param {String | Array<String>} addresses
- * @param {Number} [from]
- * @param {Number} [to]
- * @param {Number} [fromHeight]
- * @param {Number} [toHeight]
- * @returns {Promise<InsightAddrsTxResponse>}
- */
-
 /**
  * @callback InstantSend
  * @param {String} hexTx
@@ -187,16 +173,6 @@ module.exports = require("./dashsight.js");
  * @typedef {Object} InsightTxResponse
  * @property {Number} pagesTotal
  * @property {Array<InsightTx>} txs
- */
-
-/**
- * @typedef {Object} InsightAddrsTxResponse
- * @property {Number} totalItems
- * @property {Number} from
- * @property {Number} to
- * @property {Number} [fromHeight]
- * @property {Number} [toHeight]
- * @property {Array<InsightTx>} items
  */
 
 /**
