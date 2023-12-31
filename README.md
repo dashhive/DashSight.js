@@ -4,8 +4,14 @@ SDK for Dash's flavor of the Insight API
 
 # Install
 
-```bash
-npm install --save dashsight
+```sh
+npm install --save dashsight@1.x
+```
+
+To use `WebSocket`s in Node.js:
+
+```sh
+npm install --save tough-cookie@4.x ws@8.x
 ```
 
 # Usage

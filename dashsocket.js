@@ -8,7 +8,7 @@
   /**
    * @typedef WsOpts
    * @prop {String} [baseUrl] - (deprecated by dashsocketBaseUrl) ex: https://insight.dash.org
-   * @prop {CookieStore} cookieStore - only needed for insight APIs hosted behind an AWS load balancer
+   * @prop {import('./').CookieStore?} cookieStore - only needed for insight APIs hosted behind an AWS load balancer
    * @prop {Boolean} debug
    * @prop {Function} onClose
    * @prop {Function} onError
@@ -47,20 +47,16 @@
       let now = Date.now();
       let sidUrl = `${dashsocketBaseUrl}/?EIO=3&transport=polling&t=${now}`;
 
-      let sidResp = await window.fetch(sidUrl, {
-        mode: "cors",
-        credentials: "include",
-      });
+      let sidResp = await Ws.fetch(sidUrl);
       if (!sidResp.ok) {
         let err = new Error("bad response");
-        // TODO make error type consistent between browser and node?
+        //@ts-ignore
         err.response = sidResp;
         throw err;
       }
 
       // ex: `97:0{"sid":"xxxx",...}`
-      let msg = await sidResp.text();
-      let session = parseSession(msg);
+      let session = parseSession(sidResp.body || "");
       return session;
     };
 
@@ -75,10 +71,8 @@
       let subUrl = `${dashsocketBaseUrl}/?EIO=3&transport=polling&t=${now}&sid=${sid}`;
       let body = stringifySub(eventname);
 
-      let subResp = await window.fetch(subUrl, {
+      let subResp = await Ws.fetch(subUrl, {
         method: "POST",
-        mode: "cors",
-        credentials: "include",
         headers: {
           "Content-Type": "text/plain;charset=UTF-8",
         },
@@ -91,7 +85,7 @@
         throw err;
       }
 
-      return await subResp.text();
+      return subResp.body;
     };
 
     /*
@@ -291,7 +285,7 @@
   /**
    * TODO share with node version
    * @param {String} msg
-   * @returns {SocketIoHello}
+   * @returns {import('./').SocketIoHello}
    */
   function parseSession(msg) {
     let colonIndex = msg.indexOf(":");
@@ -450,5 +444,61 @@
 
       return result;
     }
+  };
+
+  /** @type {RequestInit} */
+  let defaultRequest = {
+    mode: "cors",
+    credentials: "include",
+  };
+
+  /**
+   * @param {String | URL | Request} url
+   * @param {RequestInit} [_opts]
+   */
+  Ws.fetch = async function dashfetch(url, _opts) {
+    let opts = Object.assign(defaultRequest, _opts);
+
+    let resp = await fetch(url, opts);
+    // this will not have arrays, only strings
+    let headers = Object.fromEntries(resp.headers.entries());
+    let body = await resp.text();
+
+    let response = {
+      ok: resp.ok,
+      statusCode: resp.status, // backwards compat
+      statusText: resp.statusText,
+      headers: headers,
+      body: body,
+      toJSON: function () {
+        return {
+          ok: response.ok,
+          statusCode: response.statusCode,
+          statusText: response.statusText,
+          headers: headers,
+          body: body,
+        };
+      },
+      get status() {
+        console.warn(
+          "deprecated: please use either 'statusText' or 'statusCode' (node.js and browser both have 'status', but flipped)",
+        );
+        return resp.statusText;
+      },
+      _request: opts,
+      _response: resp,
+    };
+
+    if (resp.ok) {
+      return response;
+    }
+
+    let err = new Error(
+      `http request was ${resp.status}, not ok. See err.response for details.`,
+    );
+
+    // @ts-ignore
+    err.response = response;
+    throw err;
   };
 })(("undefined" !== typeof module && module.exports) || window);
